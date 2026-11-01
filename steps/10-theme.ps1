@@ -7,7 +7,7 @@ Register-Step -Id 'secureuxtheme' -Order 10 -Title 'SecureUxTheme 설치 (비공
 }
 
 Register-Step -Id 'aero11-theme' -Order 11 -Title 'Aero11 테마 복사 + 적용' -Kind Auto -Run {
-    $src = Require-Asset -Pattern @('Aero11') -Directory -Hint '구글 드라이브의 Aero11 폴더'
+    $src = Require-Asset -Pattern @('Aero11*', '*Aero*') -Directory -Containing '*.theme' -Hint '구글 드라이브의 Aero11 폴더 (.theme 파일이 있는 폴더)'
     $dest = Join-Path $env:SystemRoot 'Resources\Themes'
     Copy-DirSafe -Source $src -Destination $dest
 

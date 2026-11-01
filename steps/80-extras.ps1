@@ -19,7 +19,7 @@ Register-Step -Id 'gadgets' -Order 83 -Title 'Windows 7 가젯' -Kind Semi -Run 
 }
 
 Register-Step -Id 'account-pictures' -Order 84 -Title 'Win7 사용자 계정 사진' -Kind Auto -Run {
-    $src = Find-Asset -Pattern @('User Account Pictures') -Directory
+    $src = Find-Asset -Pattern @('User Account Pictures') -Directory -Containing '*.*'
     if (-not $src) { $src = Get-Win7File 'ProgramData\Microsoft\User Account Pictures' }
     Copy-DirSafe -Source $src -Destination (Join-Path $env:ProgramData 'Microsoft\User Account Pictures')
 }
@@ -42,15 +42,16 @@ Register-Step -Id 'network-indicator' -Order 87 -Title '네트워크 활동 표�
     $defaultDir = 'C:\Windows (Vista-7)\Network Activity Indicator'
     $exe = Join-Path $defaultDir 'NetworkIndicator.exe'
     if (-not (Test-Path $exe)) {
-        $zip = Find-Asset -Pattern @('*.zip') -Under 'NetworkActivityIndicator'
-        if ($zip) {
-            Expand-Zip $zip (Join-Path $W7.Work 'nai')
-            if (-not (Test-DryRun)) {
-                $found = Get-ChildItem (Join-Path $W7.Work 'nai') -Recurse -Filter 'NetworkIndicator.exe' | Select-Object -First 1
-                if ($found) { Copy-DirSafe -Source $found.DirectoryName -Destination $defaultDir }
-            }
+        # assets has two versions: "Network Activity Indicator" and "Network Activity Indicator (Wifi)"
+        $wifi = [bool](Get-Cfg 'networkIndicatorWifi' $false)
+        $all = @()
+        if (Test-Path $W7.Assets) { $all = @(Get-ChildItem -LiteralPath $W7.Assets -Recurse -File -Filter 'NetworkIndicator.exe' -ErrorAction SilentlyContinue) }
+        $pick = @($all | Where-Object { ($_.FullName -like '*Wifi*') -eq $wifi }) + $all | Select-Object -First 1
+        if ($pick) {
+            Write-Log "네트워크 표시기 원본: $($pick.DirectoryName)"
+            Copy-DirSafe -Source $pick.DirectoryName -Destination $defaultDir
         } else {
-            Invoke-AssetInstallers -Under 'NetworkActivityIndicator' -What 'Network Activity Indicator'
+            Invoke-AssetInstallers -Under 'Network Activity Indicator' -What 'Network Activity Indicator'
         }
     }
     if (-not (Test-Path $exe) -and -not (Test-DryRun)) {
@@ -111,7 +112,7 @@ Register-Step -Id 'windhawk-extras' -Order 89 -Title 'Windhawk 추가 모드' -K
 }
 
 Register-Step -Id 'sounds' -Order 90 -Title 'Windows 7 사운드' -Kind Auto -Run {
-    $src = Find-Asset -Pattern @('Media') -Directory
+    $src = Find-Asset -Pattern @('Media*') -Directory -Containing '*.wav'
     if (-not $src) { $src = Get-Win7File 'Windows\Media' }
     if (-not (Test-DryRun) -and -not (Test-Path $src)) { throw "Win7 사운드 폴더가 없어요: $src" }
     Write-Log '원글: 사운드 교체는 VM에서 하는 걸 추천. 원본은 백업해 둬요.' 'WARN'

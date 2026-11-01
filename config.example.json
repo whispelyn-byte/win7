@@ -1,6 +1,7 @@
 {
   "language": "ko-KR",
   "isLaptop": false,
+  "networkIndicatorWifi": false,
 
   "win7IsoPath": "C:\\ISO\\Windows7_SP1_x64_ko-KR.iso",
   "win7WimIndex": 1,
@@ -18,6 +19,7 @@
   "steps": {
     "preflight": true,
     "tools": true,
+    "assets-unpack": true,
     "win7-extract": true,
     "secureuxtheme": true,
     "aero11-theme": true,

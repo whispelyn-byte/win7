@@ -1,11 +1,26 @@
 # assets 폴더
 
-원글의 구글 드라이브 폴더나 각 사이트에서 받은 파일을 여기에 넣으세요.
-스크립트는 **이름 패턴으로 하위 폴더까지 다 뒤져서** 찾기 때문에 폴더 구조가 아래와 꼭 같지 않아도 돼요.
-그래도 아래처럼 정리해 두면 헷갈리지 않아요.
+## 제일 쉬운 방법
 
-> ⚠️ GitHub는 100MB 넘는 파일을 못 올려요. **Windows 7 ISO는 저장소에 올리지 말고**
-> `config.json`의 `win7IsoPath`에 PC 경로를 적으세요.
+원글의 구글 드라이브 폴더를 통째로 받은 zip(`Windows (Vista-7)-2026....zip`)을 **압축 풀지 말고 그대로** 여기에 넣으세요.
+스크립트의 `assets-unpack` 단계가 zip 안의 zip(Media, Network Activity Indicator, NTMU-Packs, Windows-11to7)까지
+`assets\_unpacked\`에 자동으로 풀고, 필요한 파일을 이름 패턴으로 찾아요.
+
+```
+assets/
+├─ README.md
+└─ Windows (Vista-7)-20261031T133530Z-1-001.zip   ← 이것만 넣으면 됨
+```
+
+> ⚠️ **assets는 GitHub에 올리지 마세요.** 스크립트는 내 PC에서 돌기 때문에 PC의 assets 폴더에만 있으면 돼요.
+> (`Windows-11to7`만 443MB라 GitHub 100MB 제한에 걸리고, 남의 파일을 공개 저장소에 재배포하는 문제도 있어요.)
+> `.gitignore`에 `assets/*`를 넣어놔서 실수로 커밋되지 않아요.
+>
+> Windows 7 ISO도 여기 넣거나(`*.iso` 자동 탐지) `config.json`의 `win7IsoPath`에 경로를 적으세요.
+
+## 따로 받은 파일을 넣을 때
+
+하위 폴더까지 이름 패턴으로 뒤져서 찾기 때문에 구조가 아래와 꼭 같지 않아도 돼요.
 
 ```
 assets/

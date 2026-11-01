@@ -9,12 +9,13 @@ GUI로만 할 수 있는 부분(Windhawk 모드 설치, NTMU 적용 버튼 등)�
 ## 준비
 
 1. 이 저장소를 받기 (`git clone` 또는 ZIP)
-2. `assets\` 에 파일 넣기 → [assets/README.md](assets/README.md)
+2. 원글 구글 드라이브 폴더를 통째로 받은 zip을 **압축 풀지 말고** `assets\`에 넣기 → [assets/README.md](assets/README.md)
 3. Windows 7 ISO 준비 (SP1 x64 권장, 가능하면 Windows 표시 언어와 같은 언어)
 4. `config.example.json` 을 `config.json` 으로 복사하고 수정
    - `win7IsoPath`: ISO 경로 (필수)
    - `language`: `ko-KR`
    - `isLaptop`: 노트북이면 `true` (트레이에 배터리/모바일 센터 추가)
+   - `networkIndicatorWifi`: 와이파이면 `true` (Network Activity Indicator (Wifi) 버전 사용)
    - `steps`: 끄고 싶은 단계는 `false`
 
 ## 실행
@@ -43,6 +44,7 @@ GUI로만 할 수 있는 부분(Windhawk 모드 설치, NTMU 적용 버튼 등)�
 |---|---|---|---|
 | 0 | `preflight` | 빌드/언어/에셋 점검, 복원 지점 | 자동 |
 | 5 | `tools` | 7-Zip (winget) | 자동 |
+| 6 | `assets-unpack` | assets 안의 zip(중첩 zip 포함) 풀기 + 에셋 점검 | 자동 |
 | 8 | `win7-extract` | ISO의 install.wim에서 필요한 파일 추출 | 자동 |
 | 10 | `secureuxtheme` | SecureUxTheme 설치 → **재부팅** | 자동 |
 | 11 | `aero11-theme` | Aero11을 `C:\Windows\Resources\Themes`에 복사 + 적용 | 자동 |

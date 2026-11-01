@@ -23,33 +23,6 @@ Register-Step -Id 'preflight' -Order 0 -Title '사전 점검 + 시스템 복원 
     if (-not $iso) { $iso = Find-Asset -Pattern @('*.iso') }
     if (-not $iso -or -not (Test-Path $iso)) { Write-Log 'Windows 7 ISO 경로가 없어요 (config.json의 win7IsoPath). ISO가 필요한 단계가 실패할 거예요.' 'WARN' }
 
-    # quick asset inventory (warn only)
-    $checks = @(
-        @{ n = 'SecureUxTheme msi';        p = @('SecureUxTheme*.msi') },
-        @{ n = 'Aero11 테마 폴더';          p = @('Aero11'); d = $true },
-        @{ n = 'OpenGlass 설치 파일';       p = @('OpenGlassSetup*.exe') },
-        @{ n = 'oglbasic.reg';             p = @('oglbasic.reg') },
-        @{ n = 'oglfull.reg';              p = @('oglfull.reg') },
-        @{ n = 'NTMU 팩: explorer-frame';  p = @('explorer-frame-vista*'); d = $true },
-        @{ n = 'NTMU 팩: cursor-7';        p = @('cursor-7*'); d = $true },
-        @{ n = 'NTMU 팩: win7-ribbon';     p = @('win7-ribbon*'); d = $true },
-        @{ n = 'NTMU 팩: briefcase';       p = @('briefcase*'); d = $true },
-        @{ n = 'NTMU 팩: pane7';           p = @('pane7*'); d = $true },
-        @{ n = 'NTMU 팩: win7-tray-items'; p = @('win7-tray-items*'); d = $true },
-        @{ n = 'NTMU 팩: gameux';          p = @('gameux*'); d = $true },
-        @{ n = 'Explorer7 (ex7forw8.exe)'; p = @('ex7forw8.exe') },
-        @{ n = 'OldNewExplorer';           p = @('OldNewExplorerCfg.exe') },
-        @{ n = 'OpenWithEx';               p = @('*'); u = 'OpenWithEx' },
-        @{ n = 'AuthUx';                   p = @('*'); u = 'AuthUx' },
-        @{ n = 'Network Activity Indicator'; p = @('*'); u = 'NetworkActivityIndicator' }
-    )
-    $missing = 0
-    foreach ($c in $checks) {
-        $hit = Find-Asset -Pattern $c.p -Directory:([bool]$c.d) -Under ([string]$c.u)
-        if ($hit) { Write-Log "에셋 OK: $($c.n)" } else { Write-Log "에셋 없음: $($c.n)" 'WARN'; $missing++ }
-    }
-    if ($missing -gt 0) { Write-Log "없는 에셋 $missing 개. 해당 단계에서 멈추거나 수동 안내로 바뀌어요. (assets\README.md 참고)" 'WARN' }
-
     Wait-User @(
         '원글 주의사항:',
         '- Discord, Spotify, Twitch 같은 Electron 앱은 AeroUI 적용 전에 미리 설치해 두세요 (나중에 설치하면 깨질 수 있음).',
@@ -68,6 +41,71 @@ Register-Step -Id 'preflight' -Order 0 -Title '사전 점검 + 시스템 복원 
 Register-Step -Id 'tools' -Order 5 -Title '필수 도구 설치 (7-Zip)' -Kind Auto -Run {
     if (Get-SevenZip) { Write-Log '7-Zip 이미 설치됨' 'OK'; return }
     Install-Winget '7zip.7zip'
+}
+
+Register-Step -Id 'assets-unpack' -Order 6 -Title 'assets 안의 zip 풀기 + 에셋 점검' -Kind Auto -Run {
+    if (-not (Test-Path $W7.Assets)) { Write-Log "assets 폴더가 없어요: $($W7.Assets)" 'WARN'; return }
+    $out = Join-Path $W7.Assets '_unpacked'
+    $7z = Get-SevenZip
+    # Google Drive downloads are zip-in-zip, so repeat a few rounds
+    for ($round = 1; $round -le 4; $round++) {
+        $zips = @(Get-ChildItem -LiteralPath $W7.Assets -Recurse -File -Filter '*.zip' -ErrorAction SilentlyContinue |
+                  Where-Object { -not (Test-Path -LiteralPath ($_.FullName + '.unpacked')) })
+        if ($zips.Count -eq 0) { break }
+        foreach ($z in $zips) {
+            # top-level zips go to assets\_unpacked\<name>, nested ones next to themselves
+            $dest = if ($z.FullName.StartsWith($out, [StringComparison]::OrdinalIgnoreCase)) {
+                Join-Path $z.DirectoryName $z.BaseName
+            } else { Join-Path $out $z.BaseName }
+            Invoke-Action "압축 풀기: $($z.Name) -> $dest" {
+                if ($7z) {
+                    & $7z x $z.FullName "-o$dest" -y 2>&1 | Out-Null
+                    if ($LASTEXITCODE -gt 1) { throw "7-Zip 압축 풀기 실패 ($LASTEXITCODE): $($z.FullName)" }
+                } else {
+                    Expand-Archive -LiteralPath $z.FullName -DestinationPath $dest -Force
+                }
+                Set-Content -LiteralPath ($z.FullName + '.unpacked') -Value $dest -Encoding UTF8
+            }
+        }
+        if (Test-DryRun) { break }
+    }
+
+    # log the layout (3 levels) so pattern mismatches are easy to spot
+    if (Test-Path $out) {
+        $base = (Resolve-Path $out).Path
+        Get-ChildItem -LiteralPath $base -Recurse -Depth 2 -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Log ('  assets\_unpacked' + $_.FullName.Substring($base.Length))
+        }
+    }
+
+    # quick asset inventory (warn only)
+    $checks = @(
+        @{ n = 'SecureUxTheme msi';        p = @('SecureUxTheme*.msi') },
+        @{ n = 'Aero11 테마 폴더';          p = @('Aero11*', '*Aero*'); d = $true; c = '*.theme' },
+        @{ n = 'OpenGlass 설치 파일';       p = @('OpenGlassSetup*.exe') },
+        @{ n = 'oglbasic.reg';             p = @('oglbasic.reg') },
+        @{ n = 'oglfull.reg';              p = @('oglfull.reg') },
+        @{ n = 'NTMU 팩: explorer-frame';  p = @('explorer-frame-vista*'); d = $true },
+        @{ n = 'NTMU 팩: cursor-7';        p = @('cursor-7*'); d = $true },
+        @{ n = 'NTMU 팩: win7-ribbon';     p = @('win7-ribbon*'); d = $true },
+        @{ n = 'NTMU 팩: briefcase';       p = @('briefcase*'); d = $true },
+        @{ n = 'NTMU 팩: pane7';           p = @('pane7*'); d = $true },
+        @{ n = 'NTMU 팩: win7-tray-items'; p = @('win7-tray-items*'); d = $true },
+        @{ n = 'NTMU 팩: gameux';          p = @('gameux*'); d = $true },
+        @{ n = 'Explorer7 (ex7forw8.exe)'; p = @('ex7forw8.exe') },
+        @{ n = 'OldNewExplorer';           p = @('OldNewExplorerCfg.exe') },
+        @{ n = 'OpenWithEx';               p = @('OpenWithEx*'); d = $true },
+        @{ n = 'AuthUx';                   p = @('AuthUx*'); d = $true },
+        @{ n = 'Network Activity Indicator'; p = @('NetworkIndicator.exe') },
+        @{ n = 'Win7 사운드 (Media)';       p = @('Media*'); d = $true; c = '*.wav' }
+    )
+    $missing = 0
+    foreach ($c in $checks) {
+        $hit = Find-Asset -Pattern $c.p -Directory:([bool]$c.d) -Containing ([string]$c.c)
+        if ($hit) { Write-Log "에셋 OK: $($c.n)" } else { Write-Log "에셋 없음: $($c.n)" 'WARN'; $missing++ }
+    }
+    if ($missing -gt 0) { Write-Log "없는 에셋 $missing 개. 해당 단계에서 멈추거나 수동 안내로 바뀌어요. (assets\README.md 참고)" 'WARN' }
+
 }
 
 Register-Step -Id 'win7-extract' -Order 8 -Title 'Windows 7 ISO에서 필요한 파일 추출' -Kind Auto -Run {

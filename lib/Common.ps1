@@ -369,11 +369,21 @@ function New-Shortcut {
 # ---------------------------------------------------------------------------
 # Find a file or folder under assets/ by wildcard, recursively. Returns $null if missing.
 function Find-Asset {
-    param([Parameter(Mandatory)] [string[]] $Pattern, [switch] $Directory, [string] $Under = '')
+    param([Parameter(Mandatory)] [string[]] $Pattern, [switch] $Directory, [string] $Under = '', [string] $Containing = '')
     $base = $W7.Assets
     if ($Under) { $base = Join-Path $base $Under }
     if (-not (Test-Path $base)) { return $null }
     foreach ($p in $Pattern) {
+        if ($Directory -and $Containing) {
+            # first matching folder (or a subfolder of it) that directly holds files matching $Containing
+            foreach ($d in @(Get-ChildItem -LiteralPath $base -Recurse -Directory -Filter $p -ErrorAction SilentlyContinue)) {
+                $cands = @($d) + @(Get-ChildItem -LiteralPath $d.FullName -Recurse -Directory -ErrorAction SilentlyContinue)
+                foreach ($c in $cands) {
+                    if (Get-ChildItem -LiteralPath $c.FullName -File -Filter $Containing -ErrorAction SilentlyContinue | Select-Object -First 1) { return $c.FullName }
+                }
+            }
+            continue
+        }
         if ($Directory) {
             $hit = Get-ChildItem -LiteralPath $base -Recurse -Directory -Filter $p -ErrorAction SilentlyContinue | Select-Object -First 1
         } else {
@@ -385,8 +395,8 @@ function Find-Asset {
 }
 
 function Require-Asset {
-    param([Parameter(Mandatory)] [string[]] $Pattern, [switch] $Directory, [string] $Under = '', [string] $Hint = '')
-    $hit = Find-Asset -Pattern $Pattern -Directory:$Directory -Under $Under
+    param([Parameter(Mandatory)] [string[]] $Pattern, [switch] $Directory, [string] $Under = '', [string] $Hint = '', [string] $Containing = '')
+    $hit = Find-Asset -Pattern $Pattern -Directory:$Directory -Under $Under -Containing $Containing
     if ($hit) { return $hit }
     $msg = "에셋을 찾을 수 없음: $($Pattern -join ', ')" + $(if ($Under) { " (assets\$Under 아래)" } else { '' })
     if ($Hint) { $msg += " - $Hint" }

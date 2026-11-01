@@ -22,9 +22,9 @@ function Find-InstalledExe {
 # Run every installer (.msi/.exe) in an assets subfolder, one by one.
 function Invoke-AssetInstallers {
     param([Parameter(Mandatory)] [string] $Under, [string] $FallbackUrl = '', [string] $What = '')
-    $dir = Join-Path $W7.Assets $Under
+    $dir = Find-Asset -Pattern @($Under, "$Under*") -Directory
     $files = @()
-    if (Test-Path $dir) { $files = @(Get-ChildItem $dir -Recurse -File -Include '*.exe', '*.msi' -ErrorAction SilentlyContinue | Sort-Object Name) }
+    if ($dir) { $files = @(Get-ChildItem $dir -Recurse -File -Include '*.exe', '*.msi' -ErrorAction SilentlyContinue | Sort-Object Name) }
     if ($files.Count -eq 0) {
         Write-Log "assets\$Under 에 설치 파일이 없어요." 'WARN'
         if ($FallbackUrl) { Open-Url $FallbackUrl }

@@ -1,2 +1,5 @@
 config.json
 *.iso
+# third-party files stay on your PC only (size limits + redistribution)
+assets/*
+!assets/README.md
